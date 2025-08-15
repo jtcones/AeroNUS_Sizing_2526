@@ -23,7 +23,9 @@ areal_mass = {
     "fibreglass_heavy": 0.24691,     # 247 g/m^2 cloth
     "epoxy": 0.27500,       # 275 g/m^2 per coat (tune!)
     "fibre_tape": 0.20227,           # 202 g/m^2
-    "skin_tape": 0.20000             # 200 g/m^2
+    "skin_tape": 0.20000,             # 200 g/m^2
+    "shrink wrap": 0.05,            # 50 g/m^2
+    "compressed foam": 0.21         # 210 g/m^2 for 5mm thick (THP Foam Board 5mm)
 }
 
 # mechanical properties in SI (Pa)
@@ -52,7 +54,7 @@ class RC_plane:
         self.wing = Wing(wing_details, mass_total)
         self.performance = self.flight_performance(P_effective=self.propulsion.effective_power, m=mass_total, S=self.wing.surface_area, AR=self.wing.aspect_ratio, CD0=self.parasitic_drag_coefficient)
         self.avionics = Avionics(4, self.propulsion.effective_power, self.performance["one_lap_timing"] * max_laps)
-        self.fuselage = Fuselage(self.wing, density)
+        self.fuselage = Fuselage(self.wing, density, areal_mass)
         self.tail = Tail(tail_details, self.wing, self.fuselage.wing_ac_to_tail_ac)
         self.landing = Landing_gear()
 
@@ -73,7 +75,8 @@ class RC_plane:
         self.wing.spar_rad = wing_spar_rad_outer
         if construction_method == "Fibre Composite Blue Foam":
             mass += self.wing.wing_volume * density["blue xps foam"]
-            mass += self.wing.wrap_area * ((areal_mass["fibreglass_light"] + areal_mass["epoxy"]) * number_of_ply)
+            mass += self.wing.wrap_area * areal_mass["shrink wrap"]
+            # mass += self.wing.wrap_area * ((areal_mass["fibreglass_light"] + areal_mass["epoxy"]) * number_of_ply)
             mass += np.pi * self.wing.wing_span * ((wing_spar_rad_outer)**2-(wing_spar_rad_outer-0.002)**2) * density["carbon spar"]
         return (mass, wing_spar_rad_outer)
 
@@ -177,27 +180,27 @@ class RC_plane:
     def calc_mass_tail_H(self, construction_method, v_cruise, CL=0.5, thickness=0.01):
         force = 0.5 * density["air"] * CL * self.tail.surface_area_H * (v_cruise) ** 2 * 0.5
         if construction_method == "Flat Plate White Foam":
-            foam_volume = self.tail.wing_span_H * thickness
-            foam_mass = foam_volume * density["compressed foam"]
+            foam_area = self.tail.wing_span_H * self.tail.chord_root_H
+            foam_mass = foam_area * areal_mass["compressed foam"]
             spar_volume = self.tail.wing_span_H * np.pi * (0.0015 ** 2)
             spar_mass = spar_volume * density["carbon spar"]
             fibre_tape_mass = (0.5 * (self.tail.chord_root_H + (self.tail.taper_ratio * self.tail.chord_root_H)) * self.tail.wing_span_H) * areal_mass["fibre_tape"]
-            epoxy_spar_area = np.pi * (2 * 0.0015) * self.tail.wing_span_H
-            epoxy_spar_mass = epoxy_spar_area * areal_mass["epoxy"]
-            mass = foam_mass + spar_mass + fibre_tape_mass + epoxy_spar_mass
+            # epoxy_spar_area = np.pi * (2 * 0.0015) * self.tail.wing_span_H
+            # epoxy_spar_mass = epoxy_spar_area * areal_mass["epoxy"]
+            mass = foam_mass + spar_mass + fibre_tape_mass  #epoxy_spar_mass
             return (mass, 0.0015)
 
     def calc_mass_tail_V(self, construction_method, v_cruise, CL=0.5, thickness=0.01):
         force = 0.5 * density["air"] * CL * self.tail.surface_area_V * (v_cruise) ** 2 * 0.5
         if construction_method == "Flat Plate White Foam":
-            foam_volume = self.tail.wing_span_V* thickness
-            foam_mass = foam_volume * density["compressed foam"]
+            foam_area = self.tail.wing_span_V * self.tail.chord_root_V
+            foam_mass = foam_area * areal_mass["compressed foam"]
             spar_volume = self.tail.wing_span_V* np.pi * (0.0015 ** 2)
             spar_mass = spar_volume * density["carbon spar"]
             fibre_tape_mass = (0.5 * (self.tail.chord_root_V + (self.tail.taper_ratio * self.tail.chord_root_V)) * self.tail.wing_span_V) * areal_mass["fibre_tape"]
-            epoxy_spar_area = np.pi * (2 * 0.0015) * self.tail.wing_span_V
-            epoxy_spar_mass = epoxy_spar_area * areal_mass["epoxy"]
-            mass = foam_mass + spar_mass + fibre_tape_mass + epoxy_spar_mass
+            # epoxy_spar_area = np.pi * (2 * 0.0015) * self.tail.wing_span_V
+            # epoxy_spar_mass = epoxy_spar_area * areal_mass["epoxy"]
+            mass = foam_mass + spar_mass + fibre_tape_mass
             return (mass, 0.0015)
 
     def get_calculated_mass(self):

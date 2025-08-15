@@ -4,17 +4,17 @@ class Avionics:
     def __init__(self, n_cells, p_motor, total_time_seconds):
         self.volts_p_cell = 3.7
         self.n_cells = n_cells
-        self.mass_per_4s_1300 = 0.156 #Tattu R-Line Version 5.0 1300mAh 14.8V 150C Lipo Battery
+        self.mass_per_4s_750 = 0.09 #Tattu R-Line 750mAh 14.8V 95C 4S1P Lipo Battery Pack With XT30 Plug
         self.current = p_motor / (self.n_cells * self.volts_p_cell)
         self.depth_of_discharge = 0.8
         self.current_mA = self.current * 1000
         self.capacity = (total_time_seconds/3600 * self.current_mA) / self.depth_of_discharge
-        self.num_battery = ceil(self.capacity/1300)
+        self.num_battery = ceil(self.capacity/750)
         self.servo_mass = 0.015
         self.num_servo = 5
         self.ESC_mass = 0.0403
         self.wire_mass_per_m = 0.015  # kg/m
-        self.mass = self.mass_per_4s_1300 * self.num_battery + self.servo_mass * self.num_servo + self.ESC_mass
+        self.mass = self.mass_per_4s_750 * self.num_battery + self.servo_mass * self.num_servo + self.ESC_mass
 
     def __str__(self):
         return (f"Avionics:\n"
