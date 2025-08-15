@@ -53,7 +53,7 @@ class RC_plane:
         self.propulsion = Propulsion()
         self.wing = Wing(wing_details, mass_total)
         self.performance = self.flight_performance(P_effective=self.propulsion.effective_power, m=mass_total, S=self.wing.surface_area, AR=self.wing.aspect_ratio, CD0=self.parasitic_drag_coefficient)
-        self.avionics = Avionics(4, self.propulsion.effective_power, self.performance["one_lap_timing"] * max_laps)
+        self.avionics = Avionics(6, self.propulsion.motor_rated_power, self.performance["one_lap_timing"] * max_laps)
         self.fuselage = Fuselage(self.wing, density, areal_mass)
         self.tail = Tail(tail_details, self.wing, self.fuselage.wing_ac_to_tail_ac)
         self.landing = Landing_gear()

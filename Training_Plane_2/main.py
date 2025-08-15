@@ -44,11 +44,11 @@ m1_laps = 2
 m2_laps = 4
 
 payload = 0.6
-mass_structure = 1.1
+mass_structure = 1.2
 
 
 mass_total = mass_structure + payload
-print(RC_plane(max(m2_laps, m1_laps), mass_total, wing_details, tail_details))
+# print(RC_plane(max(m2_laps, m1_laps), mass_total, wing_details, tail_details))
 
 
 
@@ -56,21 +56,21 @@ print(RC_plane(max(m2_laps, m1_laps), mass_total, wing_details, tail_details))
 
 
 
-# tolerance = 1e-3
-# max_iterations = 100
-# for i in range(max_iterations):
-#     mass_total = mass_structure + payload
-#     tp1 = RC_plane(max(m2_laps, m1_laps), mass_total, wing_details, tail_details)
-#     calc_structure_mass = tp1.get_calculated_mass()
-#     print(f"Iter {i}: Input guess = {mass_structure:.3f} kg, Calculated structure mass = {calc_structure_mass:.3f} kg")
-#     print(tp1.debug_mass())
-#     if abs(calc_structure_mass - mass_structure) < tolerance:
-#         print(f"Converged after {i + 1} iterations")
-#         print(tp1)
-#         with open("results.txt", "w", encoding="utf-8") as f:
-#             f.write(tp1.__str__())
-#         break
-#     mass_structure = 0.5 * (calc_structure_mass + mass_structure)
+tolerance = 1e-3
+max_iterations = 100
+for i in range(max_iterations):
+    mass_total = mass_structure + payload
+    tp1 = RC_plane(max(m2_laps, m1_laps), mass_total, wing_details, tail_details)
+    calc_structure_mass = tp1.get_calculated_mass()
+    print(f"Iter {i}: Input guess = {mass_structure:.3f} kg, Calculated structure mass = {calc_structure_mass:.3f} kg")
+    print(tp1.debug_mass())
+    if abs(calc_structure_mass - mass_structure) < tolerance:
+        print(f"Converged after {i + 1} iterations")
+        print(tp1)
+        with open("results.txt", "w", encoding="utf-8") as f:
+            f.write(tp1.__str__())
+        break
+    mass_structure = 0.5 * (calc_structure_mass + mass_structure)
 
 
 
