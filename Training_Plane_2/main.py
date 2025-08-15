@@ -23,16 +23,16 @@ from scipy.optimize import brentq, fixed_point
 from RC_plane import RC_plane
 
 wing_details = {
-    "wing_span": 1.8,
+    "wing_span": 1.2,
     "taper_ratio": 1,
-    "wing_loading": 9,
+    "wing_loading": 5.5,
     "airfoil_type": "clark Y"
 }
 
 tail_details = {
     "taper_ratio": 1,
     "tail_coefficient_H": 0.5,
-    "tail_coefficient_V": 0.25
+    "tail_coefficient_V": 0.025
 }
 
 # size wings
@@ -58,6 +58,8 @@ for i in range(max_iterations):
     if abs(calc_structure_mass - mass_structure) < tolerance:
         print(f"Converged after {i + 1} iterations")
         print(tp1)
+        with open("results.txt", "w", encoding="utf-8") as f:
+            f.write(tp1.__str__())
         break
     mass_structure = 0.5 * (calc_structure_mass + mass_structure)
 

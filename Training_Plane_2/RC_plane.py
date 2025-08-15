@@ -6,29 +6,39 @@ from Wing import Wing
 from Fuselage import Fuselage
 import numpy as np
 from scipy.optimize import brentq
-
+# volumetric density (kg/m^3) – your values are fine
 density = {
     "blue xps foam": 35.0,
     "white foam": 17.0,
     "compressed foam": 49.2,
     "EPS foam": 20.0,
-    "carbon spar": 1500,
-    "basswood": 400,
+    "carbon spar": 1500.0,
+    "basswood": 400.0,
     "air": 1.225
-} #kg/m^3
+}
 
-UTS = {
-    "carbon spar": 650000000,
-    "fibreglass": 0.0320,
-    "thick fibreglass": 0.24691,
-    "epoxy": 0.275,
-    "fibre tape": 0.20227,
-    "skin tape": 0.2
-} #kg/m^2
+# areal mass for skins/tapes/coat (kg/m^2)
+areal_mass = {
+    "fibreglass_light": 0.03200,     # 32 g/m^2 cloth
+    "fibreglass_heavy": 0.24691,     # 247 g/m^2 cloth
+    "epoxy": 0.27500,       # 275 g/m^2 per coat (tune!)
+    "fibre_tape": 0.20227,           # 202 g/m^2
+    "skin_tape": 0.20000             # 200 g/m^2
+}
 
-young_modulus = {
-    "carbon spar": 200000000000
-} #kg/m^2
+# mechanical properties in SI (Pa)
+UTS_Pa = {
+    "carbon_spar": 8.0e8,            # ~800 MPa (typical along fibres; tune to your spec)
+    "fibreglass_laminate": 6.0e8,    # ~600 MPa (order-of-magnitude)
+    "basswood": 6.0e7                # ~60 MPa
+}
+
+young_modulus_Pa = {
+    "carbon_spar": 1.4e11,           # ~140 GPa (pultruded CF rod range 120–160 GPa)
+    "fibreglass_laminate": 3.5e10,   # ~35 GPa
+    "basswood": 1.0e10               # ~10 GPa
+}
+
 
 number_of_ply = 1
 safety_factor = 2
@@ -41,9 +51,9 @@ class RC_plane:
         self.propulsion = Propulsion()
         self.wing = Wing(wing_details, mass_total)
         self.performance = self.flight_performance(P_effective=self.propulsion.effective_power, m=mass_total, S=self.wing.surface_area, AR=self.wing.aspect_ratio, CD0=self.parasitic_drag_coefficient)
-        self.avionics = Avionics(6, 100, self.performance["one_lap_timing"] * max_laps)
+        self.avionics = Avionics(4, self.propulsion.effective_power, self.performance["one_lap_timing"] * max_laps)
         self.fuselage = Fuselage(self.wing, density)
-        self.tail = Tail(tail_details, self.wing, self.fuselage.length)
+        self.tail = Tail(tail_details, self.wing, self.fuselage.wing_ac_to_tail_ac)
         self.landing = Landing_gear()
 
         self.mass_wing = self.calc_mass_wing("Fibre Composite Blue Foam", self.performance["V_Cruise"])[0]
@@ -58,21 +68,42 @@ class RC_plane:
     def calc_mass_wing(self, construction_method, v_cruise, CL_max=1.3):
         number_of_ply = 1
         mass = 0
-        force = 0.5 * density["air"] * CL_max * self.wing.surface_area * (v_cruise)**2 * 0.5
-        wing_spar_rad_outer = self.spar_dimension(self.wing.wing_span, force, safety_factor=safety_factor)
+        force = 0.5 * density["air"] * CL_max * self.wing.surface_area * (v_cruise)**2
+        wing_spar_rad_outer = self.spar_dimension(self.wing.wing_span, force, safety_factor=2)
+        self.wing.spar_rad = wing_spar_rad_outer
         if construction_method == "Fibre Composite Blue Foam":
             mass += self.wing.wing_volume * density["blue xps foam"]
-            mass += self.wing.wrap_area * ((UTS["fibreglass"] + UTS["epoxy"]) * number_of_ply)
-            mass += np.pi * self.wing.wing_span * ((wing_spar_rad_outer+0.001)**2-(wing_spar_rad_outer-0.001)**2) * density["carbon spar"]
+            mass += self.wing.wrap_area * ((areal_mass["fibreglass_light"] + areal_mass["epoxy"]) * number_of_ply)
+            mass += np.pi * self.wing.wing_span * ((wing_spar_rad_outer)**2-(wing_spar_rad_outer-0.002)**2) * density["carbon spar"]
         return (mass, wing_spar_rad_outer)
 
-    def spar_dimension(self, wing_length, force, safety_factor):
-        uts_with_safety_factor = UTS["carbon spar"] / safety_factor
-        rad_o = 0.001
-        max_stress = (0.5 * self.wing.wing_span * force * rad_o) / ((np.pi * ((rad_o ** 4) - (rad_o - 0.001) ** 4)) / 4)
-        while max_stress > uts_with_safety_factor:
-            rad_o += 0.0005
-            max_stress = (0.5 * wing_length * force * rad_o) / ((np.pi * ((rad_o ** 4) - (rad_o - 0.001) ** 4)) / 4)
+    def spar_dimension(self, wing_span, force, safety_factor, wall_thickness=0.002):
+        uts_with_safety_factor = UTS_Pa["carbon_spar"] / safety_factor
+
+        '''
+        Returns the outer radius of spar.
+        
+        Inputs:
+        wing_span: wing full span
+        force: force on full wing
+        safety_factor: safety factor 
+        wall_thickness: thickness of the spar
+        '''
+        # force is total lift for BOTH wings, each panel takes half
+        panel_length = wing_span / 2
+        panel_force = force / 2
+
+        # Max bending moment at root of one panel occurs at the centre for uniform distribution(cantilever assumption)
+        M = panel_force * panel_length / 2
+
+        rad_o = 0.001  # starting guess outer radius (m)
+        while True:
+            r_i = rad_o - wall_thickness
+            I = np.pi * (rad_o ** 4 - r_i ** 4) / 4
+            sigma = M * rad_o / I
+            if sigma <= uts_with_safety_factor:
+                break
+            rad_o += 0.0005  # increment 0.5 mm
         return rad_o
 
     def flight_performance(self, P_effective, m, S, AR, g=9.81, rho=1.225, e=0.8, CD0=0.17, CL_min=0.02, CL_max=1.3):
@@ -136,7 +167,7 @@ class RC_plane:
         ####Find flight timing and distance of track.
         straight_distance = 152.4 * 4
         turning_distance = 2 * (2 * np.pi * turn_radii)
-        take_off_and_land_time = 0
+        take_off_and_land_time = 60
         one_lap_time = straight_distance/V + turning_distance/V_turning + take_off_and_land_time
 
         result["one_lap_timing"] = one_lap_time
@@ -150,9 +181,9 @@ class RC_plane:
             foam_mass = foam_volume * density["compressed foam"]
             spar_volume = self.tail.wing_span_H * np.pi * (0.0015 ** 2)
             spar_mass = spar_volume * density["carbon spar"]
-            fibre_tape_mass = (0.5 * (self.tail.chord_root_H + (self.tail.taper_ratio * self.tail.chord_root_H)) * self.tail.wing_span_H) * UTS["fibre tape"]
+            fibre_tape_mass = (0.5 * (self.tail.chord_root_H + (self.tail.taper_ratio * self.tail.chord_root_H)) * self.tail.wing_span_H) * areal_mass["fibre_tape"]
             epoxy_spar_area = np.pi * (2 * 0.0015) * self.tail.wing_span_H
-            epoxy_spar_mass = epoxy_spar_area * UTS["epoxy"]
+            epoxy_spar_mass = epoxy_spar_area * areal_mass["epoxy"]
             mass = foam_mass + spar_mass + fibre_tape_mass + epoxy_spar_mass
             return (mass, 0.0015)
 
@@ -163,9 +194,9 @@ class RC_plane:
             foam_mass = foam_volume * density["compressed foam"]
             spar_volume = self.tail.wing_span_V* np.pi * (0.0015 ** 2)
             spar_mass = spar_volume * density["carbon spar"]
-            fibre_tape_mass = (0.5 * (self.tail.chord_root_V + (self.tail.taper_ratio * self.tail.chord_root_V)) * self.tail.wing_span_V) * UTS["fibre tape"]
+            fibre_tape_mass = (0.5 * (self.tail.chord_root_V + (self.tail.taper_ratio * self.tail.chord_root_V)) * self.tail.wing_span_V) * areal_mass["fibre_tape"]
             epoxy_spar_area = np.pi * (2 * 0.0015) * self.tail.wing_span_V
-            epoxy_spar_mass = epoxy_spar_area * UTS["epoxy"]
+            epoxy_spar_mass = epoxy_spar_area * areal_mass["epoxy"]
             mass = foam_mass + spar_mass + fibre_tape_mass + epoxy_spar_mass
             return (mass, 0.0015)
 

@@ -1,16 +1,17 @@
 class Fuselage:
 
     def __init__(self, wing, density):
-        self.int_struc_percentage = 0.15
-        self.length = wing.wing_span * 0.8
-        self.width = self.length * 0.15
-        self.height = self.length * 0.15
+        self.int_struc_percentage = 0.1
+        self.length = wing.wing_span * 0.85
+        self.width = self.length * 0.09
+        self.height = self.length * 0.09
         self.wing_ac_from_nose = self.length * 0.15 + wing.chord_root * 0.25
         self.tail_ac_from_nose = self.wing_ac_from_nose + wing.wing_span * 0.45
-        self.mass = self.Semi_monocoque_mass(density)
+        self.wing_ac_to_tail_ac = self.tail_ac_from_nose - self.wing_ac_from_nose
+        self.mass = self.semi_monocoque_mass(density)
 
 
-    def Semi_monocoque_mass(self, density, fuselage_skin_thickness=0.005):  # Compressed foam + wood structures
+    def semi_monocoque_mass(self, density, fuselage_skin_thickness=0.005):  # Compressed foam + wood structures
         # Calculate skin mass
         front_area = self.width * self.height
         rear_area = front_area
@@ -37,4 +38,5 @@ class Fuselage:
                 f"  Height: {self.height} m\n"
                 f"  Wing AC from nose: {self.wing_ac_from_nose} m\n"
                 f"  Tail AC from nose: {self.tail_ac_from_nose} m\n"
+                f"  Wing AC to Tail AC: {self.wing_ac_to_tail_ac} m\n"
                 f"  Mass: {self.mass:.3f} kg")

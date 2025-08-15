@@ -18,6 +18,7 @@ class Wing:
         self.chord_mac = self.chord_root * (2/3) * ((1 + self.taper_ratio + self.taper_ratio**2)/(1 + self.taper_ratio))
         self.wing_volume = self.calc_wing_volume(self.airfoil_type)
         self.wrap_area = self.calc_total_surface_area(self.airfoil_type)
+        self.spar_rad = 0
 
     def calc_wing_volume(self, wing_type):
         volume = area_constant[wing_type] * self.chord_tip**2 * self.wing_span
@@ -34,4 +35,5 @@ class Wing:
                 f"  Aspect Ratio: {self.aspect_ratio:.3f}\n"
                 f"  Surface Area: {self.surface_area:.3f} m²\n"
                 f"  Chord (root/tip): {self.chord_root:.3f} m / {self.chord_tip:.3f} m\n"
-                f"  Mean Aerodynamic Chord: {self.chord_mac:.3f} m")
+                f"  Mean Aerodynamic Chord: {self.chord_mac:.3f} m\n"
+                f"  Carbon Spar Rad: {self.spar_rad:.3f} m")

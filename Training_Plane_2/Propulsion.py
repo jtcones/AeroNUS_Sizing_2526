@@ -3,10 +3,10 @@ class Propulsion:
         self.motor_eff = 0.85 #electrical -> mechanical
         self.esc_eff = 0.98
         self.prop_eff = 0.6
-        self.motor_rated_power = 800
+        self.motor_rated_power = 400
         # self.max_watt_hour = 100
         self.overall_propulsion_efficiency = self.motor_eff * self.esc_eff * self.prop_eff
-        self.mass = self.motor_rated_power * 0.0006
+        self.mass = self.motor_rated_power * 0.0003
         self.effective_power = self.motor_rated_power*self.overall_propulsion_efficiency
 
     def __str__(self):

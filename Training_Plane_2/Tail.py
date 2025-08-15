@@ -1,10 +1,10 @@
 class Tail:
-    def __init__(self, tail_details, wing, length_fuselage):
+    def __init__(self, tail_details, wing, moment_arm):
         # self.mass
         self.tail_coefficient_H = tail_details["tail_coefficient_H"]
         self.tail_coefficient_V = tail_details["tail_coefficient_V"]
-        self.surface_area_V = self.tail_coefficient_H * wing.chord_mac * wing.surface_area / length_fuselage
-        self.surface_area_H = self.tail_coefficient_V * wing.wing_span * wing.surface_area / length_fuselage
+        self.surface_area_V = self.tail_coefficient_H * wing.chord_mac * wing.surface_area / moment_arm
+        self.surface_area_H = self.tail_coefficient_V * wing.wing_span * wing.surface_area / moment_arm
 
         self.taper_ratio = tail_details["taper_ratio"]
         self.aspect_ratio_H = wing.aspect_ratio / 2
