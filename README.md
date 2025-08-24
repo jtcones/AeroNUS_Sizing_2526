@@ -10,6 +10,7 @@ The program helps automate aircraft sizing decisions by combining:
 ---
 
 ## 📂 Repository Structure  
+```text
 .
 ├── .idea/ # IDE-specific files (ignore)
 ├── Training_Plane_2/ # Deprecated approach (use v1 instead)
@@ -18,7 +19,7 @@ The program helps automate aircraft sizing decisions by combining:
 ├── material_properties/ # Material databases and properties
 ├── 2009_dbf_rules.pdf # Reference DBF rules (2009 baseline)
 └── README.md # This file
-
+```
 
 > ⚠️ **Note**: `Training_Plane_2` is deprecated. Please use `Training_Plane_2_v1` together with `fixed_params/` and `material_properties/`.  
 
@@ -43,5 +44,6 @@ Scoring is based on:
    ```bash
    git clone https://github.com/<your-username>/<repo-name>.git
    cd <repo-name>
-2. Use the Training_Plane_2_v1/ folder as the main entry point.
-3. Modify parameters in fixed_params/ and material_properties/ for your design iteration.
+   ```
+2. Use the `Training_Plane_2_v1/` folder as the main entry point.
+3. Modify parameters in `fixed_params/` and `material_properties/` for your design iteration.
