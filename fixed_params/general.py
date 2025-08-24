@@ -1,0 +1,9 @@
+#plane general params
+CD0 = 0.17
+g = 9.81
+rho = 1.225
+e = 0.8
+CL_min = 0.2
+CL_max = 1.3
+CL_turn = 1
+payload = 0.6
