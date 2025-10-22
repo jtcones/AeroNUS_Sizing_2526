@@ -23,9 +23,9 @@ from scipy.optimize import brentq, fixed_point
 from RC_plane import RC_plane
 
 wing_details = {
-    "wing_span": 1.2,
+    "wing_span": 0.82,
     "taper_ratio": 1,
-    "wing_loading": 5.5,
+    "wing_loading": 5.8,
     "airfoil_type": "clark Y"
 }
 
@@ -43,16 +43,12 @@ m1_laps = 2
 # #mission 2 (full payload)
 m2_laps = 4
 
-payload = 0.6
+payload = 0
 mass_structure = 1.2
 
 
 mass_total = mass_structure + payload
 # print(RC_plane(max(m2_laps, m1_laps), mass_total, wing_details, tail_details))
-
-
-
-
 
 
 
@@ -67,8 +63,8 @@ for i in range(max_iterations):
     if abs(calc_structure_mass - mass_structure) < tolerance:
         print(f"Converged after {i + 1} iterations")
         print(tp1)
-        with open("results.txt", "w", encoding="utf-8") as f:
-            f.write(tp1.__str__())
+        # with open("results.txt", "w", encoding="utf-8") as f:
+        #     f.write(tp1.__str__())
         break
     mass_structure = 0.5 * (calc_structure_mass + mass_structure)
 
@@ -85,4 +81,7 @@ for i in range(max_iterations):
 
 
 
-
+"""
+  Construction Method: Blue Foam + Shrink Warp + Carbon Spar
+    Construction Method: Compressed Foam (2 x 5mm foam board) + Carbon Spar (0.0015m Radius) + Fibre Tape
+"""

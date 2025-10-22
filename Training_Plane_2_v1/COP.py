@@ -56,15 +56,16 @@ def mass_consistency(x):
     t = assignment["m_struct"]
     return m - (general.payload + t)
 
+
+
 nlc = NonlinearConstraint(mass_consistency, -0.1, 0.1)
 x0 = [1.2, 1.2, 400, 6]
 bounds = [(1, 10), (1, 3), (300, 1000), (2, 6)]
-result = minimize(objective, x0, bounds=bounds, constraints=[nlc])
+result = minimize(objective, x0, bounds=bounds, constraints=[nlc], options={'disp': True})
 if result.success:
     x = result.x
     assign = {"m_total": x[0], "wing_span": x[1], "motor_power": x[2], "battery_cell": x[3]}
     plane = RC_Plane(assign)
     final_plane = plane.wing_dimensioning().semi_monocoque_mass().tail_mass_and_dimension().landing_gear().propulsion().performance().calc_mass_wing(
         "Fibre Composite Blue Foam").calc_avionics()
-    print(final_plane.params)
-print(result)
+    final_plane.print_plane_specs()

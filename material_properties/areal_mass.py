@@ -8,3 +8,4 @@ fibre_tape = 0.20227  # 202 g/m^2
 skin_tape = 0.20000  # 200 g/m^2
 shrink_wrap = 0.05  # 50 g/m^2
 compressed_foam = 0.21  # 210 g/m^2 for 5mm thick (THP Foam Board 5mm)
+lightweight_ripstop = 0.075 # 75 g/m^2

@@ -53,7 +53,7 @@ class RC_plane:
         self.propulsion = Propulsion()
         self.wing = Wing(wing_details, mass_total)
         self.performance = self.flight_performance(P_effective=self.propulsion.effective_power, m=mass_total, S=self.wing.surface_area, AR=self.wing.aspect_ratio, CD0=self.parasitic_drag_coefficient)
-        self.avionics = Avionics(6, self.propulsion.motor_rated_power, self.performance["one_lap_timing"] * max_laps)
+        self.avionics = Avionics(6, self.propulsion.motor_rated_power, self.performance["four_lap_timing"])
         self.fuselage = Fuselage(self.wing, density, areal_mass)
         self.tail = Tail(tail_details, self.wing, self.fuselage.wing_ac_to_tail_ac)
         self.landing = Landing_gear()
@@ -112,6 +112,8 @@ class RC_plane:
     def flight_performance(self, P_effective, m, S, AR, g=9.81, rho=1.225, e=0.8, CD0=0.17, CL_min=0.02, CL_max=1.3):
         W = m * g
         k = 1 / (np.pi * AR * e)
+        q = 0.5 * rho * S
+
 
         def power_required(CL):
             return (CD0 + k * CL ** 2) * (W / CL) * np.sqrt((2 * W) / (rho * S * CL))
@@ -154,15 +156,27 @@ class RC_plane:
         ####Find Max G, Banking Angle and Banking Velocity
         CD = CD0 + k * CL_max ** 2
 
+
+        V_stall = velocity(CL_max, 1)
+        # def power_required_n(n, v_stall=V_stall, q=q, k=k, CD0=CD0):
+        #     v = v_stall * np.sqrt(n)
+        #     return q * np.power(v, 3) * CD0 + k * np.power(n * W, 2) / (q * v)
+        #
+        # c, d = 1, 5
+        # n_max_straight = brentq(lambda n: P_effective - power_required_n(n), c, d)
+
         A = (CD * W / CL_max) * np.sqrt(2.0 * W / (rho * S * CL_max))
         n_max = (P_effective / A) ** (2.0 / 3.0)
-        self.max_g = n_max if n_max < self.max_g else self.max_g
+        # print("n_max calculated OG: ", n_max)
+        # print("n_max new way: ", n_max_straight)
+        self.max_g = n_max if n_max > self.max_g else self.max_g
         V_turning = velocity(CL_max, self.max_g)
         bank_angle_rad = np.arccos(1/self.max_g)
         bank_angle_deg = np.degrees(bank_angle_rad)
         turn_radii = V_turning**2 / (g * np.tan(bank_angle_rad))
 
         result["V_turning"] = V_turning
+        result["V_stall"] = V_stall
         result["bank_angle"] = bank_angle_deg
         result["turn_radius"] = turn_radii
         result["max_g"] = self.max_g
@@ -172,8 +186,10 @@ class RC_plane:
         turning_distance = 2 * (2 * np.pi * turn_radii)
         take_off_and_land_time = 60
         one_lap_time = straight_distance/V + turning_distance/V_turning + take_off_and_land_time
+        total_time = (straight_distance/V + turning_distance/V_turning) * 4 + take_off_and_land_time
 
         result["one_lap_timing"] = one_lap_time
+        result["four_lap_timing"] = total_time
 
         return result
 
@@ -228,8 +244,11 @@ class RC_plane:
             "--- Performance ---",
             f"Cruise Speed (V_cruise): {self.performance['V_Cruise']:.2f} m/s",
             f"Turning Speed (V_turn): {self.performance['V_turning']:.2f} m/s",
+            f"Stall Speed @ 1G (V_stall): {self.performance['V_stall']:.2f} m/s",
             f"Bank Angle: {self.performance['bank_angle']:.2f} degree",
             f"One Lap Time: {self.performance['one_lap_timing']:.2f} s",
+            f"Four Lap Time: {self.performance['four_lap_timing']:.2f} s",
+            f"Turn Radii: {self.performance['turn_radius']:.2f} m",
             f"Effective Power: {self.propulsion.effective_power:.2f} W",
             "",
             "--- Mass Breakdown ---",

@@ -112,7 +112,7 @@ class RC_Plane():
         def flight_time(radius, v_straight, v_turn):
             turning_distance = 2 * (2 * np.pi * radius)
 
-            total_time = (flight_track.straight_distance / v_straight + turning_distance / v_turn) * flight_track.max_laps + flight_track.take_off_and_land_time
+            total_time = ((flight_track.straight_distance / v_straight + turning_distance / v_turn) * 1.5 * flight_track.max_laps) + flight_track.take_off_and_land_time
             return total_time
 
         #calculate maximum turning functionality
@@ -199,8 +199,8 @@ class RC_Plane():
         self.params["fuselage_width"] = width
         self.params["fuselage_length"] = length
         self.params["fuselage_height"] = height
-        self.params["wing_ac_from_nose"] = length * 0.15 + self.params["wing_c"] * 0.25
-        self.params["tail_ac_from_nose"] = self.params["wing_ac_from_nose"] + self.params["wing_span"] * 0.45
+        self.params["wing_ac_from_nose"] = length * fuselage.nose_ratio + self.params["wing_c"] * fuselage.AC_chord_ratio
+        self.params["tail_ac_from_nose"] = length * fuselage.wing_ac_to_tail_ac
         self.params["wing_ac_to_tail_ac"] = self.params["tail_ac_from_nose"] - self.params["wing_ac_from_nose"]
         self.params["m_struct"] = self.params["m_struct"] + total_mass
         return RC_Plane(self.params)
@@ -419,7 +419,7 @@ def spar_dimension(wing_span, force, safety_factor, wall_thickness=0.002):
 def velocity(CL, n, W, S):
     return np.sqrt((2 * n * W) / (rho * S * CL))
 
-# assign = {"m_total": 1, "wing_span": 1, "motor_power": 300, "battery_cell": 6}
+assign = {"m_total": 1.7, "wing_span": 0.82, "motor_power": 400, "battery_cell": 6}
 # plane = RC_Plane(assign)
 # final_plane = plane.wing_dimensioning().semi_monocoque_mass().tail_mass_and_dimension().landing_gear().propulsion().performance().calc_mass_wing(
 #     "Fibre Composite Blue Foam").calc_avionics()

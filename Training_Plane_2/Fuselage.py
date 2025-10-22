@@ -1,12 +1,12 @@
 class Fuselage:
 
     def __init__(self, wing, density, areal_mass):
-        self.int_struc_percentage = 0.05
+        self.int_struc_percentage = 0.1
         self.length = wing.wing_span * 0.85
         self.width = self.length * 0.09
         self.height = self.length * 0.09
         self.wing_ac_from_nose = self.length * 0.15 + wing.chord_root * 0.25
-        self.tail_ac_from_nose = self.wing_ac_from_nose + wing.wing_span * 0.45
+        self.tail_ac_from_nose = 0.88 * self.length
         self.wing_ac_to_tail_ac = self.tail_ac_from_nose - self.wing_ac_from_nose
         self.mass = self.semi_monocoque_mass(density, areal_mass)
 
