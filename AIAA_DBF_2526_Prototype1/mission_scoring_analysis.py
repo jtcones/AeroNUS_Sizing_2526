@@ -356,7 +356,7 @@ def objective_total(x):
     m_puck = general.puck
     ducks = pucks * PC_ratio
     m2_payload = pucks * m_puck + ducks * m_duck
-
+    CD0 = 0.13 + 0.01 * np.sqrt(ducks)
     banner_length_m = banner_length * 0.0254
     banner_width = banner_length / banner_AR
     banner_width_m = banner_width * 0.0254
@@ -504,12 +504,8 @@ def objective_total(x):
         v = velocity(CL, 1, W)
         # more power required because of additional drag. Add D friction, D pressure of banner.
         # drag friction
-        Re = v * banner_length_m / general.nu
-        cf = 0.074 * np.power(Re, -0.2)
-        surface_area = 2 * banner_length_m * banner_width_m
-        Df = 0.5 * rho * cf * surface_area * (v ** 2)
-        Dp = 0.5 * rho * CDP * 0.021 * banner_width_m * (v ** 2)
-        return ((CD0 + k * CL ** 2) * (W / CL) + 2 * (Df + Dp)) * v
+        CD_banner = 0.5 * np.power(banner_AR, -0.5)
+        return ((CD0 + CD_banner + k * CL ** 2) * (W / CL)) * v
 
     def find_CL_cruise_m3(W):
         # Create a fine CL grid to look for sign changes
@@ -569,7 +565,7 @@ search_space = [
     Integer(0, 30, name="pucks"),
     Integer(3, 15, name="passenger_cargo_ratio"),
     Integer(10, 1000, name="banner_length"), #inch
-    Integer(1, 5, name="banner_AR"),
+    Integer(1, 6, name="banner_AR"),
     Integer(45, 270, name="m2_fly_time"), #s
     Integer(45, 270, name="m3_fly_time") #s
 ]
@@ -578,7 +574,7 @@ search_space = [
 result = gp_minimize(
     objective_total,
     search_space,
-    n_calls=50,
+    n_calls=1000,
     n_initial_points=10,
     random_state=42
 )
