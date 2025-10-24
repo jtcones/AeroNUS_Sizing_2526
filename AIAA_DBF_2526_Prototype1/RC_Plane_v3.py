@@ -527,7 +527,7 @@ def spar_dimension(wing_span, force, safety_factor, wall_thickness=0.002):
     return rad_o
 
 
-# m_struct, wing_span, motor_power, wing_AR, n_pucks, passenger_cargo_ratio, m2_battery, banner_length, banner_AR, m3_battery
-plane = RCPlane(1.33, 1.15, 350, 7, 5, 6, 50, 250, 5, 50)
-
-print(plane)
+# # m_struct, wing_span, motor_power, wing_AR, n_pucks, passenger_cargo_ratio, m2_battery, banner_length, banner_AR, m3_battery
+# plane = RCPlane(1.33, 1.15, 350, 7, 5, 6, 50, 250, 5, 50)
+#
+# print(plane)
