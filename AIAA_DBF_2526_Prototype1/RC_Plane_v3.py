@@ -160,6 +160,10 @@ class Performance:
     max_bank_angle: float
     max_turn_radius: float
 
+@dataclass(frozen=True)
+class M1(Performance):
+    flight_time: float
+    num_laps: int
 
 @dataclass(frozen=True)
 class M2(Performance):
@@ -317,8 +321,42 @@ def flight_time_one_lap(radius, v_straight, v_turn):
 
     # The original logic included a multiplier of 1.5
     total_time = (flight_track.straight_distance / v_straight + TURNING_DISTANCE_RATIO * radius / v_turn) * 1.5
+    # multiple 1.5 to account for real life inperfect turning ( not always at the best radius)
     return total_time
 
+def analyse_performance_m1(m_total: float, battery_cap: float, wing: WingGeometry, propulsion: Propulsion, CD0: float) -> M1:
+    k = 1 / (np.pi * wing.AR * e)
+    W = m_total * g
+    P_effective = propulsion.effective_power
+    power = propulsion.motor_power
+
+    try:
+        # Turning performance
+        n_turn, v_turn, bank_angle, turn_radius = find_turning_conditions(CL_turn, W, CD0, k,
+                                                                          P_effective, wing.area)
+        n_max, max_v_turn, max_bank_angle, max_turn_radius = find_turning_conditions(CL_max, W, CD0, k,
+                                                                                     P_effective, wing.area)
+        # Cruise performance
+        CL_cruise = find_CL_cruise(W, P_effective, CD0, k, wing.area, CL_min, CL_max)
+        V_cruise = velocity(CL_cruise, 1, W, wing.area)
+
+        # stall
+        V_stall = velocity(CL_max, 1, W, wing.area)
+
+        # flight time
+        flight_time = battery_cap * avionics.depth_of_discharge * 3600 / power
+        effective_flying = min(flight_time - 60, 270)
+        one_lap = flight_time_one_lap(turn_radius, V_cruise, v_turn)
+        number_of_laps = effective_flying // one_lap
+
+        if number_of_laps < 3:
+            raise ValueError("M1, Number of Laps cannot be less than 3")
+
+        return M1(CL_cruise, V_cruise, V_stall, n_turn, v_turn, turn_radius, bank_angle, n_max, max_v_turn,
+                  max_bank_angle, max_turn_radius, flight_time, number_of_laps)
+
+    except Exception as error:
+        raise error
 
 def analyse_performance_m2(m_total: float, battery_cap: float, wing: WingGeometry, propulsion: Propulsion, CD0: float,
                            ducks: int, n_pucks: int) -> M2:
@@ -347,7 +385,7 @@ def analyse_performance_m2(m_total: float, battery_cap: float, wing: WingGeometr
         number_of_laps = effective_flying // one_lap
 
         if number_of_laps < 1:
-            raise ValueError("Number of Laps cannot be less than 1")
+            raise ValueError("M2, Number of Laps cannot be less than 1")
         return M2(CL_cruise, V_cruise, V_stall, n_turn, v_turn, turn_radius, bank_angle, n_max, max_v_turn,
                   max_bank_angle, max_turn_radius, flight_time, number_of_laps, ducks, n_pucks)
 
@@ -384,7 +422,7 @@ def analyse_performance_m3(m_total: float, battery_cap: float, wing: WingGeometr
         number_of_laps = effective_flying // one_lap
 
         if number_of_laps < 1:
-            raise ValueError("Number of Laps cannot be less than 1")
+            raise ValueError("M3, Number of Laps cannot be less than 1")
 
         return M3(CL_cruise, V_cruise, V_stall, n_turn, v_turn, turn_radius, bank_angle, n_max, max_v_turn,
                   max_bank_angle, max_turn_radius, flight_time, number_of_laps, banner_length, banner_length / banner_AR)
@@ -393,18 +431,25 @@ def analyse_performance_m3(m_total: float, battery_cap: float, wing: WingGeometr
         print(f"Error: {error}")
         raise error
 
+def take_off():
+    pass;
 
 # ========== AVIONICS ==========
 @dataclass(frozen=True)
 class Avionics:
+    m1_capacity: int
     m2_capacity: int
     m3_capacity: int
+    m1_mass_battery: int
     m2_mass_battery: float
     m3_mass_battery: float
     mass_avionics: float
 
 
-def design_avionics(m2_battery: int, m3_battery: int) -> Avionics:
+def design_avionics(m1_battery: int, m2_battery: int, m3_battery: int) -> Avionics:
+    m1_capacity = m1_battery
+    m1_mass_battery = m1_capacity / avionics.energy_density
+
     m2_capacity = m2_battery
     m2_mass_battery = m2_capacity / avionics.energy_density
 
@@ -413,7 +458,7 @@ def design_avionics(m2_battery: int, m3_battery: int) -> Avionics:
 
     mass_avionics = (avionics.servo_mass * avionics.num_servo +
                      avionics.ESC_mass)
-    return Avionics(m2_capacity, m3_capacity, m2_mass_battery, m3_mass_battery, mass_avionics)
+    return Avionics(m1_capacity, m2_capacity, m3_capacity, m1_mass_battery, m2_mass_battery, m3_mass_battery, mass_avionics)
 
 
 # ========== RCPlane Orchestrator ==========
@@ -425,6 +470,7 @@ class RCPlane:
     wing_AR: int
     n_pucks: int
     passenger_cargo_ratio: int
+    m1_battery: int
     m2_battery: int
     banner_length: int
     banner_AR: int
@@ -437,6 +483,7 @@ class RCPlane:
     fuselage: Fuselage | None = None
     tail: Tail | None = None
     propulsion: Propulsion | None = None
+    m1: M1 | None = None
     m2: M2 | None = None
     m3: M3 | None = None
     avionics: Avionics | None = None
@@ -457,7 +504,7 @@ class RCPlane:
         self.m3_payload = 1.2 * area_banner * areal_mass.lightweight_ripstop
 
         # Avionics & Propulsion
-        self.avionics = design_avionics(self.m2_battery, self.m3_battery)
+        self.avionics = design_avionics(self.m1_battery, self.m2_battery, self.m3_battery)
         self.propulsion = design_propulsion(self.motor_power)
 
         # Wing Geom
@@ -465,6 +512,11 @@ class RCPlane:
 
         self.m_max = self.m_struct + self.propulsion.mass + max(self.m2_payload + self.avionics.m2_mass_battery,
                                                                 self.m3_payload + self.avionics.m3_mass_battery)
+
+        # Mission 1 Performance
+        m_M1 = self.m_struct + self.propulsion.mass + self.avionics.m1_mass_battery
+        self.m1 = analyse_performance_m1(m_M1, self.avionics.m1_capacity, wing, self.propulsion,
+                                         self.CD0)
 
         # Mission 2 Performance
         m_M2 = self.m_struct + self.propulsion.mass + self.m2_payload + self.avionics.m2_mass_battery
@@ -527,7 +579,7 @@ def spar_dimension(wing_span, force, safety_factor, wall_thickness=0.002):
     return rad_o
 
 
-# # m_struct, wing_span, motor_power, wing_AR, n_pucks, passenger_cargo_ratio, m2_battery, banner_length, banner_AR, m3_battery
-# plane = RCPlane(1.33, 1.15, 350, 7, 5, 6, 50, 250, 5, 50)
+# # m_struct, wing_span, motor_power, wing_AR, n_pucks, passenger_cargo_ratio, m1_battery, m2_battery, banner_length, banner_AR, m3_battery
+# plane = RCPlane(1.33, 1.15, 350, 7, 5, 6, 100, 50, 250, 5, 50)
 #
 # print(plane)
