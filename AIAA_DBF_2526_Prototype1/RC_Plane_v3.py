@@ -109,10 +109,11 @@ class Tail:
 
 
 def design_tail(wing: WingGeometry, fus: Fuselage) -> Tail:
+    get_v_span = lambda a, AR, S: np.sqrt( S * AR * np.cos(a))
     moment_arm = fus.wing_ac_to_tail_ac
 
     area_H = tail.tail_coefficient_H * wing.chord * wing.area / moment_arm
-    AR_H = wing.AR / 2
+    AR_H = wing.AR - 0.5
     span_H = (area_H * AR_H) ** 0.5
     chord_H = area_H / (span_H / 2 * (1 + tail.taper_ratio))
 
@@ -128,6 +129,11 @@ def design_tail(wing: WingGeometry, fus: Fuselage) -> Tail:
     tape_mass = (chord_H * span_H + chord_V * span_V) * areal_mass.fibre_tape
     mass = mass_H + mass_V + spar_mass + tape_mass
 
+    #Convert to V Tail
+    # area_Vtail = area_V + area_H
+    # angle = np.arctan(area_V/area_H)
+    # span_Vtail = get_v_span(angle, AR_H, area_Vtail)
+    
     return Tail(span_H, chord_H, area_H, AR_H, span_V, chord_V, area_V, AR_V, mass)
 
 
