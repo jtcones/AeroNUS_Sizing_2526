@@ -1,5 +1,6 @@
 from AeroPy.aeropy import xfoil_module
 from dataclasses import dataclass, field, InitVar
+from material_properties import UTS, density
 from abc import ABC, abstractmethod
 import numpy as np
 import os
@@ -44,10 +45,53 @@ class AircraftConfig:
 
 
 @dataclass
+class Spar:
+    material: str = "Carbon Fiber"
+
+    # These remain 0 or an initial guess until sized
+    outer_diameter: float = 0.0
+    wall_thickness: float = 0.002
+    mass: float = field(init=False, default=0.0)
+    is_sized: bool = field(init=False, default=False)
+
+    def spar_dimension(self, wing_span, force, safety_factor=2):
+        uts_with_safety_factor = UTS.carbon_spar / safety_factor
+
+        '''
+        Returns the outer radius of spar.
+
+        Inputs:
+        wing_span: wing full span
+        force: force on full wing
+        safety_factor: safety factor 
+        wall_thickness: thickness of the spar
+        '''
+        # force is total lift for BOTH wings, each panel takes half
+        panel_length = wing_span / 2
+        panel_force = force / 2
+
+        # Max bending moment at root of one panel occurs at the centre for uniform distribution(cantilever assumption)
+        M = panel_force * panel_length / 2
+
+        rad_o = 0.0025  # starting guess outer radius (m)
+        while True:
+            r_i = rad_o - self.wall_thickness
+            I = np.pi * (rad_o ** 4 - r_i ** 4) / 4
+            sigma = M * rad_o / I
+            if sigma <= uts_with_safety_factor:
+                break
+            rad_o += 0.0005  # increment 0.5 mm
+        self.outer_diameter= rad_o
+        self.mass = np.pi * wing_span * (rad_o ** 2 - (rad_o - self.wall_thickness) ** 2) * density.carbon_spar
+        self.is_sized = True
+
+
+@dataclass
 class Wing(ABC):
     airfoil_type: str #dat file link unless it is a naca airfoil.
     span: float
     aspect_ratio: float
+    spar: Spar = field(default_factory=Spar)
     config: AircraftConfig = field(default_factory=AircraftConfig, repr=False)
 
     # Calculated fields
@@ -132,6 +176,10 @@ class Wing(ABC):
 
         return area_ratio, circum_ratio
 
+    def size_spar(self, wing_span, max_v_cruise):
+        force = self._force_distribution(max_v_cruise)
+        self.spar.spar_dimension(wing_span, force)
+
     @abstractmethod
     def _calculate_geometry(self) -> tuple[float, float]:
         """Subclasses must implement how root and tip chord are handled. Return root then tip chord"""
@@ -145,6 +193,8 @@ class Wing(ABC):
     def _calculate_mass(self) -> float:
         """Subclasses must implement how mass of wing is estimated via materials used excluding the spars"""
         pass
+
+
 
 @dataclass
 class RectangularWing(Wing):
@@ -160,6 +210,9 @@ class RectangularWing(Wing):
 @dataclass
 class Fuselage(ABC):
     mass: float = field(init=False)
+    wing_ac_from_nose: float = field(init=False)
+    tail_ac_from_nose: float = field(init=False)
+    wing_ac_to_tail_ac: float = field(init=False)
 
     @abstractmethod
     def _size_fuselage(self, a, b) -> float:
@@ -182,6 +235,7 @@ class Tail(ABC):
         self.span_H, self.chord_H, self.area_H, self.AR_H, self.span_V, self.chord_V, self.area_V, self.AR_V = self._calculate_geometry()
 
         self.mass = self._calculate_mass()
+
     @abstractmethod
     def _calculate_geometry(self) -> tuple[float, float, float, float, float, float, float, float]:
         """Subclasses must implement how span_H, chord_H, area_H, AR_H, span_V, chord_V, area_V, AR_V
@@ -362,22 +416,32 @@ class Performance(ABC):
         """
         pass
 @dataclass
-class Structure
-@dataclass
+class FlightMission:
+    avionics: Avionics
+    performance: Performance
+    payload: float
+    score: float = 0.0
+    is_scored: bool = field(init=False, default=False)
+
+    def update_score(self, score: float):
+        self.score = score
+        self.is_scored = True
+
+@dataclass(kw_only=True)
 class Plane(ABC):
     wing: Wing = field(init=False)
     tail: Tail = field(init=False)
     fuselage: Fuselage = field(init=False)
     propulsion: Propulsion = field(init=False)
-    m1_avionics: Avionics = field(init=False)
-    m1_performance: Performance = field(init=False)
-    m1_payload: float = field(init=False)
-    m2_avionics: Avionics = field(init=False)
-    m2_performance: Performance = field(init=False)
-    m2_payload: float = field(init=False)
-    m3_avionics: Avionics = field(init=False)
-    m3_performance: Performance = field(init=False)
-    m3_payload: float = field(init=False)
+    #landing gear
+
+    # Grouped Missions
+    missions: dict[str, FlightMission] = field(default_factory=dict)
+
+    def print_mission_result(self):
+        for name, m in self.missions.items():
+            print(f"{name} Payload: {m.payload} kg | Score: {m.score}")
+            print(m)
 
     @abstractmethod
     def check_mass_coherence(self):

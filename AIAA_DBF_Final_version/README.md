@@ -40,3 +40,8 @@ WRAP level is to add the competition params over so teams can just change it bas
 
 what structure to adopt.
 Each part is a item
+
+Things to look at:
+Landing Gear in Plane
+Do i really need abstract class? or do i just need dataclasses and to have the relevant fields.
+see whether i need the variables in the class more or the methods.

@@ -1,39 +1,10 @@
-from Components import Wing, RectangularWing, Fuselage, Tail, Performance, Propulsion, LandingGear, Avionics, Plane
+from Components import Wing, RectangularWing, Fuselage, Tail, Performance, Propulsion, FlightMission, LandingGear, Avionics, Plane
 from dataclasses import dataclass, field, InitVar
 import numpy as np
 from material_properties import *
 import subprocess
 import os
 from scipy.optimize import brentq
-
-def spar_dimension(wing_span, force, safety_factor, wall_thickness=0.002):
-    uts_with_safety_factor = UTS.carbon_spar / safety_factor
-
-    '''
-    Returns the outer radius of spar.
-
-    Inputs:
-    wing_span: wing full span
-    force: force on full wing
-    safety_factor: safety factor 
-    wall_thickness: thickness of the spar
-    '''
-    # force is total lift for BOTH wings, each panel takes half
-    panel_length = wing_span / 2
-    panel_force = force / 2
-
-    # Max bending moment at root of one panel occurs at the centre for uniform distribution(cantilever assumption)
-    M = panel_force * panel_length / 2
-
-    rad_o = 0.0025  # starting guess outer radius (m)
-    while True:
-        r_i = rad_o - wall_thickness
-        I = np.pi * (rad_o ** 4 - r_i ** 4) / 4
-        sigma = M * rad_o / I
-        if sigma <= uts_with_safety_factor:
-            break
-        rad_o += 0.0005  # increment 0.5 mm
-    return rad_o
 
 @dataclass
 class XPSRectangularWing(RectangularWing):
@@ -48,10 +19,6 @@ class XPSRectangularWing(RectangularWing):
 
 @dataclass
 class SemiMono(Fuselage):
-    wing_ac_from_nose: float = field(init=False)
-    tail_ac_from_nose: float = field(init=False)
-    wing_ac_to_tail_ac: float = field(init=False)
-
     wing_span: InitVar[float] = None
     wing_c: InitVar[float] = None
     def __post_init__(self, wing_span, wing_c):
@@ -97,6 +64,17 @@ class CompressedFoamRectangleInvertedTTail(Tail):
     tail_coefficient_H : float
     tail_coefficient_V : float
     taper_ratio: float
+
+    moment_arm: InitVar[float] = None
+    wing_area: InitVar[float] = None
+    wing_span: InitVar[float] = None
+    wing_AR: InitVar[float] = None
+    wing_chord: InitVar[float] = None
+
+    def __post_init__(self, moment_arm, wing_area, wing_span, wing_AR, wing_chord):
+        self.span_H, self.chord_H, self.area_H, self.AR_H, self.span_V, self.chord_V, self.area_V, self.AR_V = self._calculate_geometry(moment_arm, wing_area, wing_span, wing_AR, wing_chord)
+
+        self.mass = self._calculate_mass()
 
     def _calculate_geometry(self, moment_arm, wing_area, wing_span, wing_AR, wing_chord) -> tuple[float, float, float, float, float, float, float, float]:
         get_v_span = lambda a, AR, S: np.sqrt(S * AR * np.cos(a))
@@ -149,7 +127,6 @@ class AIAA2526Performance(Performance):
             radius (float): Turn radius (m).
             v_straight (float): Cruise velocity (m/s).
             v_turn (float): Turning velocity (m/s).
-            straight_distance (float): Length of the straight segment (m).
 
         Returns:
             float: Time for one lap (seconds).
@@ -286,7 +263,7 @@ class AIAA2526Performance(Performance):
         except Exception as error:
             raise error
 
-@dataclass
+@dataclass(kw_only=True)
 class RCPlane(Plane):
     #inputs
     m_struct: float
@@ -301,52 +278,78 @@ class RCPlane(Plane):
     banner_AR: InitVar[int] = None
     m3_battery: InitVar[int] = None
 
+    relative_error: float = field(init=False)
+    is_converged: bool = field(init=False)
 
     def __post_init__(self, wing_span, wing_AR, motor_power, m1_battery, n_pucks, passenger_cargo_ratio, m2_battery, banner_length, banner_AR, m3_battery):
         m_duck = 0.0184 #kg
         m_puck = 0.170 #kg
         n_ducks = n_pucks * passenger_cargo_ratio
         CD0 = 0.13 + 0.01 * np.sqrt(n_ducks)
+        m2_payload = n_pucks * m_puck + n_ducks * m_duck
 
         # inches to m
         banner_length_m = banner_length * 0.0254
         banner_width = banner_length / banner_AR
         banner_width_m = banner_width * 0.0254
         area_banner = banner_length_m * banner_width_m
-        self.m3_payload = 1.2 * area_banner * areal_mass.lightweight_ripstop
+        m3_payload = 1.2 * area_banner * areal_mass.lightweight_ripstop
 
         # Avionics & Propulsion
-        self.m1_avionics = AIAAAvionics(m1_battery)
-        self.m2_avionics = AIAAAvionics(m2_battery)
-        self.m3_avionics = AIAAAvionics(m3_battery)
+        m1_avionics = AIAAAvionics(m1_battery)
+        m2_avionics = AIAAAvionics(m2_battery)
+        m3_avionics = AIAAAvionics(m3_battery)
         self.propulsion = SinglePropellerMotor(motor_power)
 
         wing = RectangularWing(airfoil_type="clarkY.dat", aspect_ratio=wing_AR, span=wing_span)
+        m1_payload = 0
 
-        m_M1 = self.m_struct + self.propulsion.mass + self.m1_payload + self.m1_avionics.mass_battery
-        m_M2 = self.m_struct + self.propulsion.mass + self.m2_payload + self.m2_avionics.mass_battery
-        m_M3 = self.m_struct + self.propulsion.mass + self.m3_payload + self.m3_avionics.mass_battery
+        m_M1 = self.m_struct + self.propulsion.mass + m1_payload + m1_avionics.mass_battery
+        m_M2 = self.m_struct + self.propulsion.mass + m2_payload + m2_avionics.mass_battery
+        m_M3 = self.m_struct + self.propulsion.mass + m3_payload + m3_avionics.mass_battery
+
         self.m_max = max(m_M1, m_M2, m_M3)
 
         # Mission 1 Performance
-        self.m1_performance = AIAA2526Performance(m_M1, m1_battery, wing.surface_area, wing_AR, self.m1_avionics.depth_of_discharge, self.propulsion.effective_power, motor_power, CD0)
+        m1_performance = AIAA2526Performance(m_M1, m1_battery, wing.surface_area, wing_AR, m1_avionics.depth_of_discharge, self.propulsion.effective_power, motor_power, CD0)
 
         # Mission 2 Performance
-        self.m2_performance = AIAA2526Performance(m_M2, m2_battery, wing.surface_area, wing_AR, self.m1_avionics.depth_of_discharge, self.propulsion.effective_power, motor_power, CD0)
+        m2_performance = AIAA2526Performance(m_M2, m2_battery, wing.surface_area, wing_AR, m1_avionics.depth_of_discharge, self.propulsion.effective_power, motor_power, CD0)
 
         # Mission 3 Performance
         # Power required function for M3 (with banner drag)
         CD_banner = 0.5 * np.power(banner_AR, -0.5)
-        self.m3_performance = AIAA2526Performance(m_M3, m3_battery, wing.surface_area, wing_AR, self.m1_avionics.depth_of_discharge, self.propulsion.effective_power, motor_power, CD0, CD_banner)
+        m3_performance = AIAA2526Performance(m_M3, m3_battery, wing.surface_area, wing_AR, m1_avionics.depth_of_discharge, self.propulsion.effective_power, motor_power, CD0, CD_banner)
+
+        self.missions["1"] = FlightMission(m1_avionics, m1_performance, m1_payload)
+        self.missions["2"] = FlightMission(m2_avionics, m2_performance, m2_payload)
+        self.missions["3"] = FlightMission(m3_avionics, m3_performance, m3_payload)
 
         # Wing Structure
-        max_v_cruise = max(self.m1_performance.V_cruise, self.m2_performance.V_cruise, self.m3_performance.V_cruise)
-        self.wing = estimate_wing_structure(wing, max_v_cruise, CL_max)
+        max_v_cruise = max(m1_performance.V_cruise, m2_performance.V_cruise, m3_performance.V_cruise)
+        self.wing.size_spar(wing_span, max_v_cruise)
 
         # Size Fuselage, Tail, Landing Gear
-        self.fuselage = size_fuselage(self.wing.span, self.wing.chord)
-        self.tail = design_tail(self.wing, self.fuselage)
+        self.fuselage = SemiMono(self.wing.span, self.wing.chord)
+        self.tail = CompressedFoamRectangleInvertedTTail(self.fuselage.wing_ac_to_tail_ac, self.wing.surface_area, wing_span, wing_AR, self.wing.chord)
 
+        self.check_mass_coherence()
+
+    def check_mass_coherence(self):
+        summed_mass = (self.missions["1"].avionics.mass_avionics + self.tail.mass + self.wing.mass + self.wing.spar.mass + self.fuselage.mass) * 1.06
+
+        # Calculate the relative difference
+        # We want the Guess (m_struct) to be very close to the Result (actual_mass)
+        relative_error = abs(summed_mass - self.m_struct) / self.m_struct
+
+        # A 1% tolerance is usually sufficient for engineering convergence
+        is_converged = relative_error <= 0.01
+
+        self.relative_error = relative_error
+        self.is_converged = is_converged
+
+    def converged(self):
+        return self.is_converged
 
 # wing = XPSRectangularWing("clarkY.dat", 1, 7)
 #
