@@ -328,6 +328,11 @@ class Performance(ABC):
     max_v_turn: float = field(init=False)
     max_bank_angle: float = field(init=False)
     max_turn_radius: float = field(init=False)
+    flight_time: float = field(init=False)
+    number_of_laps: int = field(init=False)
+    L_D_cruise: float = field(init=False)
+    stall_margin: float = field(init=False)
+    load_factor_margin: float = field(init=False)
 
     m_total: InitVar[float] = None
     battery_cap: InitVar[float] = None
@@ -337,13 +342,17 @@ class Performance(ABC):
     P_effective: InitVar[float] = None
     power: InitVar[float] = None
     CD0: InitVar[float] = None
+    CD_extra: InitVar[float] = 0.0
 
     #adjust how performance uses CD0, either as a DragParam or added
     config: AircraftConfig = field(default_factory=AircraftConfig, repr=False)
 
-    def __post_init__(self, m_total, battery_cap, wing_area, wing_AR, depth_of_discharge, P_effective, power, CD0):
-        self.CL_cruise, self.V_cruise, self.V_stall, self.n_turn, self.v_turn, self.turn_radius, self.bank_angle, self.n_max, self.max_v_turn, self.max_bank_angle, self.max_turn_radius = self.analyse_performance(m_total, battery_cap, wing_area, wing_AR, depth_of_discharge, P_effective, power, CD0)
-
+    def __post_init__(self, m_total, battery_cap, wing_area, wing_AR, depth_of_discharge, P_effective, power, CD0, CD_extra):
+        self.CL_cruise, self.V_cruise, self.V_stall, self.n_turn, self.v_turn, self.turn_radius, \
+            self.bank_angle, self.n_max, self.max_v_turn, self.max_bank_angle, self.max_turn_radius, \
+            self.flight_time, self.number_of_laps, self.L_D_cruise, self.stall_margin, self.load_factor_margin = \
+            self.analyse_performance(m_total, battery_cap, wing_area, wing_AR, depth_of_discharge, P_effective, power,
+                                     CD0, CD_extra)
     @abstractmethod
     def flight_time_one_lap(self, radius, v_straight, v_turn):
         """
