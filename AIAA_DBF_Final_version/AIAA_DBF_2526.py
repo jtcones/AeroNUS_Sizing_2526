@@ -265,11 +265,12 @@ class AIAA2526Performance(Performance):
 
             # flight time
             flight_time = battery_cap * depth_of_discharge * 3600 / power
-            effective_flying = flight_time - 60 #excluding take off and landing
+            effective_flying = flight_time - 60 # excluding take off and landing
+            max_time = min(effective_flying, 270) #within 5 minutes for each flight mission
             one_lap = self.flight_time_one_lap(turn_radius, V_cruise, v_turn)
-            number_of_laps = effective_flying // one_lap
-            if number_of_laps < 1:
-                raise ValueError("Number of Laps Flown is less than 1")
+            number_of_laps = max_time // one_lap
+            # if number_of_laps < 1:
+            #     raise ValueError("Number of Laps Flown is less than 1")
             return CL_cruise, V_cruise, V_stall, n_turn, v_turn, turn_radius, bank_angle, n_max, max_v_turn, max_bank_angle, max_turn_radius, flight_time, number_of_laps, L_D_cruise, stall_margin, load_factor_margin
 
         except Exception as error:
