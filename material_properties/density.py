@@ -1,6 +1,10 @@
+"""Bulk densities (kg/m^3).
+
+Values for foams are nominal — check batch/supplier specs when buying
+new stock. ``air`` is ISA sea-level and is also duplicated in
+``Components.PhysicsEnv.rho`` for ease of access.
 """
-density of materials in kg/m^3
-"""
+
 blue_xps_foam = 35.0
 white_foam = 17.0
 compressed_foam = 49.2

@@ -1,0 +1,34 @@
+# ---------------------------------------------------------------------
+# AeroNUS Sizing 2025/26 - Python dependencies
+# Target: Python 3.11 or 3.12
+#
+# scikit-optimize is pinned against numpy 1.x because its internal
+# histogram code breaks against numpy 2.x (as of 0.10.x). If you
+# upgrade to scikit-optimize >=0.11, you can relax the numpy cap.
+# ---------------------------------------------------------------------
+
+# --- Core numerics ---
+numpy>=1.26,<2.0
+scipy>=1.11,<2.0
+pandas>=2.0,<3.0
+
+# --- Optimisation ---
+pygad>=3.3.1,<4.0
+pyswarms>=1.3.0,<2.0
+scikit-optimize>=0.10,<0.12
+
+# --- Plotting + progress ---
+matplotlib>=3.7,<4.0
+tqdm>=4.65
+
+# --- Notebook support (only needed if running Optimisation_Comparision.ipynb) ---
+jupyter>=1.0
+ipykernel>=6.0
+
+# ---------------------------------------------------------------------
+# Optional: XFOIL integration via AeroPy
+# Uncomment the line below only if you plan to use NACA airfoils
+# (the shipped Clark Y setup does not need this). You will also need
+# a built ``xfoil`` binary on your PATH. See README.md for setup.
+# ---------------------------------------------------------------------
+# AeroPy @ git+https://github.com/leal26/AeroPy.git
